@@ -1,27 +1,39 @@
-import { Controller, Get, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res, HttpStatus } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
-// 1. Change this to a namespace import
-import * as express from 'express'; 
+import { Response } from 'express';
 
 @Controller('lessons')
 export class LessonsController {
   constructor(private readonly lessonsService: LessonsService) {}
 
+  // Existing route to get all lessons
   @Get()
-  // 2. Reference it as express.Response
-  async getAll(@Res() res: express.Response) { 
+  async getAllLessons(@Res() res: Response) {
     try {
-      const data = await this.lessonsService.findAll();
-      
-      // Manual serialization to bypass the circular structure crash
-      const safeJson = JSON.stringify(data);
+      const lessons = await this.lessonsService.findAll();
+      return res.status(HttpStatus.OK).json(lessons);
+    } catch (error) {
+      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'Error fetching lessons',
+        error: error.message,
+      });
+    }
+  }
 
-      return res
-        .status(HttpStatus.OK)
-        .header('Content-Type', 'application/json')
-        .send(safeJson);
-    } catch (e: any) {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send(e.message);
+  // NEW: Route for Teachers to create a lesson
+  @Post('create')
+  async createLesson(@Body() lessonData: any, @Res() res: Response) {
+    try {
+      const newLesson = await this.lessonsService.create(lessonData);
+      return res.status(HttpStatus.CREATED).json({
+        message: 'Lesson created successfully',
+        data: newLesson,
+      });
+    } catch (error) {
+      return res.status(HttpStatus.BAD_REQUEST).json({
+        message: 'Failed to create lesson',
+        error: error.message,
+      });
     }
   }
 }

@@ -1,33 +1,40 @@
 import { Injectable } from '@nestjs/common';
-import { DatabaseService } from '../database/database.service';
+import * as oracledb from 'oracledb';
 
 @Injectable()
 export class LessonsService {
-  constructor(private readonly db: DatabaseService) {}
-
+  
   async findAll() {
+    let connection;
     try {
-      const result = await this.db.executeQuery('SELECT * FROM LESSONS');
+      connection = await oracledb.getConnection();
+      // We explicitly alias columns to match what the frontend expects
+      const result = await connection.execute(
+        `SELECT ID, TITLE, CONTENT, AUDIOURL FROM LESSONS`,
+        [],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      return result.rows;
+    } catch (err) {
+      throw err;
+    } finally {
+      if (connection) await connection.close();
+    }
+  }
+
+  async create(data: any) {
+    let connection;
+    try {
+      connection = await oracledb.getConnection();
+      const sql = `INSERT INTO LESSONS (TITLE, CONTENT, AUDIOURL) VALUES (:1, :2, :3)`;
+      const binds = [data.title, data.content, data.audioUrl];
       
-      if (!result || !result.rows) return [];
-
-      // We extract ONLY the primitive values to ensure no hidden objects remain
-      const cleanData = result.rows.map((row: any) => {
-        return {
-          lessonId: Number(row.LESSON_ID),
-          title: String(row.TITLE || ''),
-          content: String(row.CONTENT_TEXT || ''),
-          videoUrl: row.VIDEO_URL ? String(row.VIDEO_URL) : null,
-          audioUrl: row.AUDIO_URL ? String(row.AUDIO_URL) : null,
-          level: String(row.LESSON_LEVEL || '')
-        };
-      });
-
-      return cleanData;
-    } catch (error: any) {
-      // Log only the message, not the whole error object (which is circular)
-      console.error('Lessons Service Error:', error.message);
-      return [];
+      await connection.execute(sql, binds, { autoCommit: true });
+      return { title: data.title };
+    } catch (err) {
+      throw err;
+    } finally {
+      if (connection) await connection.close();
     }
   }
 }
