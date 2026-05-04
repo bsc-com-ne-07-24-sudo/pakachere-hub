@@ -1,24 +1,14 @@
-import { Controller, Get, Param, Res, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
-import { Response } from 'express';
+import type { Response } from 'express'; // FIX: import type
 
-@Controller('api/v1/students')
+@Controller('rewards')
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
-  @Get(':id/rewards')
+  @Get(':id')
   async getStudentRewards(@Param('id') studentId: string, @Res() res: Response) {
-    try {
-      const rewards = await this.rewardsService.getRewardsByStudent(studentId);
-      return res.status(HttpStatus.OK).json({
-        studentId,
-        rewards: rewards
-      });
-    } catch (error) {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        message: "Error fetching rewards",
-        error: error.message
-      });
-    }
+    const rewards = await this.rewardsService.getStudentRewards(studentId);
+    return res.status(200).json(rewards);
   }
 }

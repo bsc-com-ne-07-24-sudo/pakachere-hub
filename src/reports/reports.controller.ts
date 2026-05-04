@@ -1,24 +1,14 @@
-import { Controller, Get, Res, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Res } from '@nestjs/common';
 import { ReportsService } from './reports.service';
-import { Response } from 'express';
+import type { Response } from 'express'; // FIX: import type
 
-@Controller('api/reports')
+@Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get()
   async getSystemOverview(@Res() res: Response) {
-    try {
-      const reportData = await this.reportsService.generateOverview();
-      return res.status(HttpStatus.OK).json({
-        generatedAt: new Date().toISOString(),
-        data: reportData
-      });
-    } catch (error) {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        message: "Failed to generate admin reports",
-        error: error.message
-      });
-    }
+    const data = await this.reportsService.getStats();
+    return res.status(200).json(data);
   }
 }
