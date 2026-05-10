@@ -21,4 +21,16 @@ export class ExamsController {
   async getMyRegistrations(@Request() req: any) {
     return await this.examsService.getMyRegistrations(req.user.userId);
   }
+
+  @Get('all-pending')
+  @Roles('teacher') // Only teachers can see the list
+  async getPendingRegistrations() {
+    return await this.examsService.getPending();
+  }
+
+  @Post('approve')
+  @Roles('teacher')
+  async approveRegistration(@Body() body: { regId: number, status: string }) {
+    return await this.examsService.updateStatus(body.regId, body.status);
+  }
 }
