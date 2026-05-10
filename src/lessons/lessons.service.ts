@@ -1,40 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import * as oracledb from 'oracledb';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class LessonsService {
-  
+  constructor(private readonly db: DatabaseService) {}
+
   async findAll() {
-    let connection;
     try {
-      connection = await oracledb.getConnection();
-      // We explicitly alias columns to match what the frontend expects
-      const result = await connection.execute(
-        `SELECT ID, TITLE, CONTENT, AUDIOURL FROM LESSONS`,
-        [],
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
-      );
-      return result.rows;
-    } catch (err) {
-      throw err;
-    } finally {
-      if (connection) await connection.close();
+      const sql = `SELECT ID, TITLE, CONTENT, AUDIOURL FROM LESSONS`;
+      // result is now already the clean array of rows
+      const result = await this.db.executeQuery(sql, []);
+      return result; 
+    } catch (error) {
+      throw new Error('Could not fetch lessons: ' + error.message);
     }
   }
 
   async create(data: any) {
-    let connection;
     try {
-      connection = await oracledb.getConnection();
-      const sql = `INSERT INTO LESSONS (TITLE, CONTENT, AUDIOURL) VALUES (:1, :2, :3)`;
-      const binds = [data.title, data.content, data.audioUrl];
-      
-      await connection.execute(sql, binds, { autoCommit: true });
-      return { title: data.title };
-    } catch (err) {
-      throw err;
-    } finally {
-      if (connection) await connection.close();
+      const id = Math.floor(Date.now() / 1000);
+      const sql = `
+        BEGIN 
+          INSERT INTO LESSONS (ID, TITLE, CONTENT, AUDIOURL) 
+          VALUES (:1, :2, :3, :4);
+          COMMIT; 
+        END;
+      `;
+      await this.db.executeQuery(sql, [id, data.title, data.content, data.audioUrl]);
+      return { id, title: data.title };
+    } catch (error) {
+      throw new Error('Could not create lesson: ' + error.message);
     }
   }
 }

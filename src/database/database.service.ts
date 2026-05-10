@@ -14,28 +14,47 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       });
       console.log('Oracle Pool Ready.');
     } catch (err) {
-      console.error('Pool Error:', err);
+      console.error('Pool Error:', err.message);
     }
   }
 
   async executeQuery(sql: string, binds: any[] = []) {
     let connection;
     try {
+      if (!this.pool) {
+        throw new Error('Oracle Pool not initialized');
+      }
       connection = await this.pool.getConnection();
-      // Using 4002 (Object) and 2006 (CLOB) directly
-      return await connection.execute(sql, binds, { 
+      const result = await connection.execute(sql, binds, { 
         autoCommit: true,
         outFormat: 4002, 
         fetchAsString: [ 2006 ] 
       });
+
+      // Sanitization to kill circular references
+      if (result.rows) {
+        return JSON.parse(JSON.stringify(result.rows)); 
+      }
+      
+      return { success: true }; 
+
     } catch (err: any) {
-      throw err;
+      console.error('DATABASE CRASH LOG:', err.message);
+      throw new Error(err.message); 
     } finally {
-      if (connection) await connection.close();
+      if (connection) {
+        try { await connection.close(); } catch (e) {}
+      }
     }
   }
 
   async onModuleDestroy() {
-    if (this.pool) await this.pool.close();
+    if (this.pool) {
+      try {
+        await this.pool.close();
+      } catch (err) {
+        console.error('Error closing pool:', err.message);
+      }
+    }
   }
 }

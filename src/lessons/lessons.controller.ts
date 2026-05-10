@@ -1,20 +1,24 @@
-import { Controller, Get, Post, Body, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
 import { LessonsService } from './lessons.service';
-import type { Response } from 'express'; // FIX: import type
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // You should have this
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('lessons')
+@UseGuards(JwtAuthGuard, RolesGuard) // Protect everything with JWT and Roles
 export class LessonsController {
   constructor(private readonly lessonsService: LessonsService) {}
 
   @Get()
-  async getAllLessons(@Res() res: Response) {
+  @Roles('student', 'teacher') // Both can view
+  async getAllLessons() {
     const lessons = await this.lessonsService.findAll();
-    return res.status(200).json(lessons);
+    return { data: lessons };
   }
 
   @Post()
-  async createLesson(@Body() lessonData: any, @Res() res: Response) {
-    const newLesson = await this.lessonsService.create(lessonData);
-    return res.status(201).json(newLesson);
+  @Roles('teacher') // ONLY teachers can create
+  async createLesson(@Body() lessonData: any) {
+    return await this.lessonsService.create(lessonData);
   }
 }

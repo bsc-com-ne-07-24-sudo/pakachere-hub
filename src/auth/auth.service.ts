@@ -1,25 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
-import { JwtService } from '@nestjs/jwt'; // ADD THIS
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  // Inject JwtService into the constructor
   constructor(
     private readonly db: DatabaseService,
-    private readonly jwtService: JwtService // ADD THIS
+    private readonly jwtService: JwtService
   ) {}
 
   async validateUser(email: string, pass: string) {
     try {
       const sql = `SELECT USER_ID, EMAIL, PASSWORD, FULLNAME, ROLE, DISABILITY_TYPE FROM USERS WHERE LOWER(TRIM(EMAIL)) = LOWER(TRIM(:1))`;
-      const result = await this.db.executeQuery(sql, [email.trim()]);
       
-      if (result && result.rows && result.rows.length > 0) {
-        const user: any = result.rows[0];
-        
+      // result is now the array of rows directly
+      const rows: any = await this.db.executeQuery(sql, [email.trim()]);
+      
+      if (rows && rows.length > 0) {
+        const user = rows[0];
         if (user.PASSWORD.toString().trim() === pass.trim()) {
-          // Return the full user object so we can sign the token with it
           return {
             userId: user.USER_ID,
             email: user.EMAIL,
@@ -35,22 +34,22 @@ export class AuthService {
     }
   }
 
-  // NEW: This method creates the Token for the student/teacher
   async login(user: any) {
-    const payload = { 
-      username: user.email, 
-      sub: user.userId, 
-      role: user.role // Crucial for Role-Based access!
-    };
-    
+    const payload = { username: user.email, sub: user.userId, role: user.role };
     return {
       access_token: this.jwtService.sign(payload),
-      user: user // Sending user info back for the frontend
+      // Only return specific fields to avoid any hidden circular objects
+      user: {
+        userId: user.userId,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        disabilityType: user.disabilityType
+      }
     };
   }
 
   async register(userData: any) {
-    const { email, password, fullName, disabilityType, role } = userData; 
     try {
       const sql = `
         BEGIN 
@@ -62,17 +61,16 @@ export class AuthService {
       
       await this.db.executeQuery(sql, [
         Math.floor(Date.now()/1000), 
-        email.trim().toLowerCase(), 
-        password.trim(), 
-        fullName, 
-        role || 'student', 
-        disabilityType || 'None'
+        userData.email.trim().toLowerCase(), 
+        userData.password.trim(), 
+        userData.fullName, 
+        userData.role || 'student', 
+        userData.disabilityType || 'None'
       ]);
       
       return { success: true };
     } catch (error) {
-      console.error('Registration Error:', error.message);
-      throw error;
+      throw new Error('Registration failed: ' + error.message);
     }
   }
 }
