@@ -32,4 +32,26 @@ export class LessonsService {
       throw new Error('Could not create lesson: ' + error.message);
     }
   }
+  // For Students: Only see approved content
+async findApproved() {
+  const sql = `SELECT * FROM LESSONS WHERE STATUS = 'Approved' ORDER BY ID DESC`;
+  return await this.db.executeQuery(sql);
+}
+
+// For Admins: See everything that needs a review
+async findPending() {
+  const sql = `SELECT * FROM LESSONS WHERE STATUS = 'Pending' ORDER BY ID DESC`;
+  return await this.db.executeQuery(sql);
+}
+
+// The Approval Action
+async updateLessonStatus(lessonId: number, status: string) {
+  const sql = `
+    BEGIN
+      UPDATE LESSONS SET STATUS = :1 WHERE ID = :2;
+      COMMIT;
+    END;
+  `;
+  return await this.db.executeQuery(sql, [status, lessonId]);
+}
 }

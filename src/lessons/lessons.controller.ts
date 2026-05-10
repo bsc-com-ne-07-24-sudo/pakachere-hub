@@ -21,4 +21,11 @@ export class LessonsController {
   async createLesson(@Body() lessonData: any) {
     return await this.lessonsService.create(lessonData);
   }
+
+  @Get()
+@Roles('student', 'teacher', 'admin')
+async getLessons() {
+  // Students only see what has been cleared by an admin
+  return await this.lessonsService.findApproved();
+}
 }
