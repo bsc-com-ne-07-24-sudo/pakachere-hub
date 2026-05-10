@@ -1,32 +1,34 @@
-import { Controller, Post, Get, Body, Param, Res } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
-// FIX: Use 'import type' for Express Response
-import type { Response } from 'express';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('assessments')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class AssessmentsController {
   constructor(private readonly assessmentsService: AssessmentsService) {}
 
-  @Post()
-  async create(@Body() data: any, @Res() res: Response) {
-    const result = await this.assessmentsService.create(data);
-    return res.status(201).json(result);
-  }
-
-  @Get(':assessmentId')
-  async getQuiz(@Param('assessmentId') quizId: string, @Res() res: Response) {
-    const quiz = await this.assessmentsService.getQuiz(quizId);
-    return res.status(200).json(quiz);
-  }
-
-  @Post(':id/submit/:assessmentId')
+  // Students submit their answers here
+  @Post('submit/:assessmentId')
+  @Roles('student')
   async submit(
-    @Param('id') studentId: string, 
-    @Param('assessmentId') quizId: string, 
-    @Body() answers: any, 
-    @Res() res: Response
+    @Request() req: any, 
+    @Param('assessmentId') assessmentId: number, 
+    @Body() answers: any
   ) {
-    const result = await this.assessmentsService.submitScore(studentId, quizId, answers);
-    return res.status(200).json(result);
+    // Pulls studentId from JWT and assessmentId from URL
+    return await this.assessmentsService.submitScore(
+      req.user.userId, 
+      assessmentId, 
+      answers
+    );
+  }
+
+  // Students can see their past scores
+  @Get('my-scores')
+  @Roles('student')
+  async getMyScores(@Request() req: any) {
+    return await this.assessmentsService.getRecentSubmissions(req.user.userId);
   }
 }
